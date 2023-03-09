@@ -49,7 +49,7 @@ Window::Window(const int& w, const int& h) : width(w), height(h)
 	hWnd = CreateWindowEx(
 		NULL,//窗口额外风格
 		L"MySoftRender",//窗口名称
-		L"SoftRenderV1.0",//会显示在窗口标题栏上
+		L"SoftRenderV0.1 fps: ",//会显示在窗口标题栏上
 		WS_OVERLAPPEDWINDOW,//窗口风格
 		100, 100,//窗口的坐标
 		width, height,
@@ -60,7 +60,6 @@ Window::Window(const int& w, const int& h) : width(w), height(h)
 	if (!hWnd) {
 		MessageBox(NULL, L"创建窗口失败！", L"Tip", NULL);
 	}
-
 
 
 	// 创建绘图所用的位图

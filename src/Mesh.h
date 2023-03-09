@@ -1,6 +1,5 @@
 #pragma once
-#include "Shader.h"
-#include <vector>
+#include "Vertex.h"
 
 using namespace std;
 class Mesh
@@ -23,8 +22,6 @@ class Mesh
 
 		void addTriangel(const Vertex& v1, const Vertex& v2, const Vertex& v3);
 
-		void drawMesh(Shader *shader, const mat4& viewPortMat);
-
 		Mesh& operator=(const Mesh& mesh);
 
 		Mesh& operator+=(const Mesh& mesh);
@@ -32,3 +29,6 @@ class Mesh
 		~Mesh() = default;
 };
 
+Mesh createTriangle(const vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& normal);
+Mesh createPlane(const vector<vec3>& p, const vec3& n);
+Mesh createBox(const vec3& center, float r);
