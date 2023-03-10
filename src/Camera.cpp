@@ -49,9 +49,5 @@ void Camera::rotatePitch(float angle) {
 }
 void Camera::rotateYaw(float angle) {
     yaw += angle;
-    if (yaw > 360)
-        yaw = 0;
-    if (yaw < 0)
-        yaw = 360;
     updateCameraVectors();
 }

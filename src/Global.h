@@ -14,3 +14,5 @@
 #include <vector>
 
 using namespace glm;
+
+const vec3 ambient = vec3(0.5, 0.5, 0.5);

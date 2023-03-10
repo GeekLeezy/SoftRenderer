@@ -6,6 +6,7 @@
 #include "Clip.h"
 #include "Mesh.h"
 #include "Shader.h"
+#include "Model.h"
 #include "Cull.h"
 
 using namespace std;
@@ -21,35 +22,25 @@ class Render
 		int width;
 		int height;
 		FrameBuffer* frontBuffer;
-		Shader* shader;
-		Texture* texture;
+
 		vector<vec4> viewPlanes;
 
 		RenderMode renderMod;
 
 	public:
-		Render(const int& w, const int& h, Window* win, const string& path) : width(w), height(h), shader(nullptr)
+		Render(const int& w, const int& h, Window* win) : width(w), height(h)
 		{
-			frontBuffer = new FrameBuffer(win->width, win->height, (unsigned char*)win->bmpBuffer);
-			texture = new Texture(path);
+			frontBuffer = new FrameBuffer(win->width, win->height, (unsigned char*)win->bmpBuffer, false);
 			viewPlanes.resize(6, vec4(0.0));
 		}
-
-		void Init();
 
 		void clearBuffer();
 
 		~Render() {
 			if (frontBuffer)
 				delete frontBuffer;
-			if (shader)
-				delete shader;
-			if (texture)
-				delete texture;
 
 			frontBuffer = nullptr;
-			shader = nullptr;
-			texture = nullptr;
 		}
 
 
@@ -70,11 +61,15 @@ class Render
 		 * 再对顶点着色器输出的中间体进行透视除法以及剔除
 		 * 进行视口变换后绘制三角形
 		 */
-		void drawMesh(const Mesh& mesh);
+		void drawObject(Object& obj);
+
+		void drawModel(Model& model);
 
 #pragma endregion pipeLine
 		
 #pragma region Rasterization
+		void MSAA(const VerToFrag& f1, const VerToFrag& f2, const VerToFrag& f3, const int& x, const int& y);
+
 		void drawTriangle(const VerToFrag& f1, const VerToFrag& f2, const VerToFrag& f3);
 
 		/* 画线函数

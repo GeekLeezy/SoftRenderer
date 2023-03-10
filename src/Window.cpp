@@ -44,7 +44,6 @@ Window::Window(const int& w, const int& h) : width(w), height(h)
 	int newWidth = Rect.right - Rect.left;
 	int newHeight = Rect.bottom - Rect.top;
 
-
 	//声明窗口句柄
 	hWnd = CreateWindowEx(
 		NULL,//窗口额外风格

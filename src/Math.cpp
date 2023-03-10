@@ -75,3 +75,7 @@ float saturate(const float& val)
     }
     return val;
 }
+
+vec3 reflect(const vec3& lightDir, const vec3& normal) {
+    return lightDir - 2 * dot(normal, lightDir) * normal;
+}

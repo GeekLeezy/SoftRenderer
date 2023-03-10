@@ -3,14 +3,7 @@
 extern mat4 viewMatrix;
 extern mat4 projectMatrix;
 extern mat4 viewPortMatrix;
-
-void Render::Init()
-{
-	if (shader)
-		delete shader;
-
-	shader = new Shader(texture);
-}
+extern Material* curMaterial;
 
 void Render::clearBuffer()
 {
@@ -54,22 +47,23 @@ void Render::perspectiveDivision(VerToFrag& v2f) {
  * 再对顶点着色器输出的中间体进行透视除法以及剔除
  * 进行视口变换后绘制三角形
  */
-void Render::drawMesh(const Mesh& mesh)
+void Render::drawObject(Object& obj)
 {
-	if (mesh.EBO.empty())
+	if (obj.mesh.EBO.empty())
 		return;
 
-	for (auto i = 0; i < mesh.EBO.size(); i += 3)
+	curMaterial = &obj.material;
+	for (auto i = 0; i < obj.mesh.EBO.size(); i += 3)
 	{
 		Vertex v1, v2, v3;
-		v1 = mesh.VBO[mesh.EBO[i]];
-		v2 = mesh.VBO[mesh.EBO[i + 1]];
-		v3 = mesh.VBO[mesh.EBO[i + 2]];
+		v1 = obj.mesh.VBO[obj.mesh.EBO[i]];
+		v2 = obj.mesh.VBO[obj.mesh.EBO[i + 1]];
+		v3 = obj.mesh.VBO[obj.mesh.EBO[i + 2]];
 
 		VerToFrag f1, f2, f3;
-		f1 = shader->vertexShader(v1);
-		f2 = shader->vertexShader(v2);
-		f3 = shader->vertexShader(v3);
+		f1 = curMaterial->shader->vertexShader(v1);
+		f2 = curMaterial->shader->vertexShader(v2);
+		f3 = curMaterial->shader->vertexShader(v3);
 
 		//视锥剔除
 		if (!frustumCull(viewPlanes, f1.worldPos, f2.worldPos, f3.worldPos)) {
@@ -99,15 +93,15 @@ void Render::drawMesh(const Mesh& mesh)
 			vNew2.fragPos = viewPortMatrix * vNew2.fragPos;
 			vNew3.fragPos = viewPortMatrix * vNew3.fragPos;
 
-			/*if (!faceCull(vNew1.fragPos, vNew2.fragPos, vNew3.fragPos))
+			if (!faceCull(vNew1.fragPos, vNew2.fragPos, vNew3.fragPos))
 			{
 				continue;
-			}*/
+			}
 
 			drawTriangle(vNew1, vNew2, vNew3);
-			/*canvas->drawLine(vNew1, vNew2);
-			canvas->drawLine(vNew2, vNew3);
-			canvas->drawLine(vNew3, vNew1);*/
+			//drawLine(vNew1, vNew2);
+			//drawLine(vNew2, vNew3);
+			//drawLine(vNew3, vNew1);
 
 		}
 
@@ -116,14 +110,113 @@ void Render::drawMesh(const Mesh& mesh)
 	}
 }
 
+void Render::drawModel(Model& model) {
+	for (int i = 0; i < model.objects.size(); i++) {
+		drawObject(model.objects[i]);
+	}
+}
+
 #pragma endregion pipeLine
 
 #pragma region Rasterization
+
+bool insideTriangle(const vec2& p1, const vec2& p2, const vec2& p3, const vec2& p)
+{
+
+
+	float r1 = (p.x - p1.x) * (p2.y - p1.y) - (p.y - p1.y) * (p2.x - p1.x);
+	float r2 = (p.x - p2.x) * (p3.y - p2.y) - (p.y - p2.y) * (p3.x - p2.x);
+	float r3 = (p.x - p3.x) * (p1.y - p3.y) - (p.y - p3.y) * (p1.x - p3.x);
+
+	if (r1 >= 0 && r2 >= 0 && r3 >= 0)
+		return true;
+	return false;
+}
+
+void Render::MSAA(const VerToFrag& f1, const VerToFrag& f2, const VerToFrag& f3, const int& x, const int& y)
+{
+	//MSAA
+	vector<vec2> samplerStep
+	{
+		vec2(0.25,0.25),
+		vec2(0.75,0.25),
+		vec2(0.25,0.75),
+		vec2(0.75,0.75)
+	};
+
+	vec2 p1 = vec2(f1.fragPos);
+	vec2 p2 = vec2(f2.fragPos);
+	vec2 p3 = vec2(f3.fragPos);
+
+	bool depthTest = false;
+
+	for (auto k = 0; k < 4; k++)
+	{
+		vec2 p = vec2(x + samplerStep[k].x, y + samplerStep[k].y);
+		if (insideTriangle(p1, p2, p3, p))
+		{
+			VerToFrag f = barycenterLerp(f1, f2, f3, p);
+			float curDepth = frontBuffer->getDepth(x, y);
+
+			int index = width * 2 * (y * 2 + k / 2) + (x * 2 + k % 2);
+			float superDepth = frontBuffer->superDepthBuffer[index];
+
+			if (superDepth > f.fragPos.z)
+			{
+				depthTest = true;
+				frontBuffer->superDepthBuffer[index] = f.fragPos.z;
+
+				f.texture /= f.Z;
+				vec4 color = curMaterial->mainTexture->sampler2D(f.texture);
+
+				float* pos = frontBuffer->superColorBuffer;
+				*(pos + index * 4) = color.x;
+				*(pos + index * 4 + 1) = color.y;
+				*(pos + index * 4 + 2) = color.z;
+				*(pos + index * 4 + 3) = color.w;
+
+			}
+		}
+	}
+
+	if (depthTest)
+	{
+		VerToFrag f = barycenterLerp(f1, f2, f3, vec2(x, y));
+		vector<int> index = { 
+			width * 2 * (y * 2) + (x * 2),
+			width * 2 * (y * 2) + (x * 2 + 1),
+			width * 2 * (y * 2 + 1) + (x * 2),
+			width * 2 * (y * 2 + 1) + (x * 2 + 1)
+		};
+
+
+		vec4 color(0.0f);
+		for (auto k = 0; k < 4; k++)
+		{
+			float* pos = frontBuffer->superColorBuffer;
+
+			color.x += *(pos + index[k] * 4) / 4.0f;
+			color.y += *(pos + index[k] * 4 + 1) / 4.0f;
+			color.z += *(pos + index[k] * 4 + 2) / 4.0f;
+			color.w += *(pos + index[k] * 4 + 3) / 4.0f;
+		}
+
+		float z = f.Z;
+		f.worldPos /= z;
+		f.texture /= z;
+		f.normal /= z;
+		f.color /= z;
+
+		frontBuffer->drawPoint(x, y, curMaterial->shader->fragmentShader(f, color));	
+		frontBuffer->writeDepth(x, y, f.fragPos.z);
+		}
+}
+
 void Render::drawTriangle(const VerToFrag& f1, const VerToFrag& f2, const VerToFrag& f3)
 {
-	vec4 p1 = f1.fragPos;
-	vec4 p2 = f2.fragPos;
-	vec4 p3 = f3.fragPos;
+	vec2 p1 = vec2(f1.fragPos);
+	vec2 p2 = vec2(f2.fragPos);
+	vec2 p3 = vec2(f3.fragPos);
 
 	//构建包围盒
 	int max_x = std::max(p1.x, std::max(p2.x, p3.x));
@@ -131,19 +224,19 @@ void Render::drawTriangle(const VerToFrag& f1, const VerToFrag& f2, const VerToF
 	int max_y = std::max(p1.y, std::max(p2.y, p3.y));
 	int min_y = std::min(p1.y, std::min(p2.y, p3.y));
 
-	//叉积判断点是否在三角形内部
+	
+
 	for (auto i = std::max(0, min_x); i <= std::min(width, max_x); i++)
 	{
 		for (auto j = std::max(0, min_y); j <= std::min(height, max_y); j++)
 		{
-			float r1 = (i - p1.x) * (p2.y - p1.y) - (j - p1.y) * (p2.x - p1.x);
-			float r2 = (i - p2.x) * (p3.y - p2.y) - (j - p2.y) * (p3.x - p2.x);
-			float r3 = (i - p3.x) * (p1.y - p3.y) - (j - p3.y) * (p1.x - p3.x);
 
-			if (r1 >= 0 && r2 >= 0 && r3 >= 0)
+			//MSAA(f1, f2, f3, i, j);
+			if (insideTriangle(p1, p2, p3, vec2(i + 0.5, j + 0.5)))
 			{
 				VerToFrag f = barycenterLerp(f1, f2, f3, vec2(i, j));
 				float depth = frontBuffer->getDepth(i, j);
+
 				if (depth > f.fragPos.z)
 				{
 					float z = f.Z;
@@ -152,7 +245,8 @@ void Render::drawTriangle(const VerToFrag& f1, const VerToFrag& f2, const VerToF
 					f.normal /= z;
 					f.color /= z;
 
-					frontBuffer->drawPoint(i, j, shader->fragmentShader(f));
+					vec4 baseColor = curMaterial->mainTexture->sampler2D(f.texture);
+					frontBuffer->drawPoint(i, j, curMaterial->shader->fragmentShader(f, baseColor));
 					frontBuffer->writeDepth(i, j, f.fragPos.z);
 				}
 			}

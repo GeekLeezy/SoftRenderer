@@ -52,6 +52,12 @@ void FrameBuffer::clearColorBuffer()
 	if (colorBuffer != NULL)
 	{
 		memset(colorBuffer, 0, width * height * sizeof(unsigned char) * 4);
+		if (MSAA)
+		{
+			std::fill_n(superColorBuffer, width * height * 4 * 4, 0.0f);
+		}
+		
+		//memset(superColorBuffer, 0, width * height * 4 * sizeof(unsigned char) * 4);
 	}
 
 	/*unsigned char* p = colorBuffer;
@@ -68,6 +74,10 @@ void FrameBuffer::clearDepthBuffer()
 	if (depthBuffer != NULL)
 	{
 		std::fill_n(depthBuffer, width * height, 1.0f);
+		if (MSAA)
+		{
+			std::fill_n(superDepthBuffer, width * height * 4, 1.0f);
+		}
 		//memset(depthBuffer, 1.0, width * height * sizeof(float));
 	}
 }

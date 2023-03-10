@@ -9,13 +9,30 @@ class FrameBuffer
 		unsigned char* colorBuffer;
 		float* depthBuffer;
 
-		FrameBuffer(const int& w, const int& h, unsigned char* color)
+		//MSAA
+		bool MSAA;
+		float* superColorBuffer;
+		float* superDepthBuffer;
+
+		FrameBuffer(const int& w, const int& h, unsigned char* color, bool antiAlias)
 		{
 			width = w;
 			height = h;
 			colorBuffer = color;
 			depthBuffer = new float[w * h];
 			std::fill_n(depthBuffer, w * h, 1.0f);
+			MSAA = antiAlias;
+			superColorBuffer = nullptr;
+			superDepthBuffer = nullptr;
+
+			if (MSAA)
+			{
+				superColorBuffer = new float[w * h * 4 * 4];
+				superDepthBuffer = new float[w * h * 4];
+				std::fill_n(superColorBuffer, w * h * 4 * 4, 0.0f);
+				std::fill_n(superDepthBuffer, w * h * 4, 1.0f);
+			}
+			
 		}
 
 		void drawPoint(const int& x, const int& y, const vec4& color);

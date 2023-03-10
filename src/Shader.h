@@ -6,16 +6,11 @@
 using namespace glm;
 class Shader
 {
-	private:
-		Texture* texture;
 	public:
-		Shader(Texture *_texture) 
-		{
-			texture = _texture;
-		}
+		Shader() = default;
 		VerToFrag vertexShader(const Vertex& v);
 
-		vec4 fragmentShader(const VerToFrag& v2f);
+		vec4 fragmentShader(const VerToFrag& v2f, const vec4& baseColor);
 
 		~Shader() = default;
 };

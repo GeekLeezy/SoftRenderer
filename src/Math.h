@@ -19,3 +19,5 @@ mat4 getProjectMat(const float& fovY, const float& aspect, const float& zNear, c
 bool pointToPlane(const glm::vec3& v, const glm::vec4& p);
 
 float saturate(const float& val);
+
+vec3 reflect(const vec3& lightDir, const vec3& normal);
