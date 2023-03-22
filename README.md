@@ -4,10 +4,14 @@
     
 Hello, Welcome to my Project named `SoftRendered`.As you can see, this project is built to help me to grasp the knowledge of computer graphics.Without further ado, let me introduce you to the project.By the way, if this project could help you in some way, I hope you can star⭐ it!
 
+***
+
 ## Environment
 - Languages : `c++`
 - IDE : `Visual Studio 2019`
 - Three party Library : `GLM` `stb_image`
+
+***
 
 ## Main Features
 
@@ -25,6 +29,8 @@ A obj model loader. An obj model can be composed of multiple objects, which can 
 
 `Basic lighting, blinn-phong shading, ...` More features will be added soon...
 
+***
+
 ## 2023.03.10
 
 ### Basic lighting && blinn-phong shading
@@ -33,4 +39,12 @@ A obj model loader. An obj model can be composed of multiple objects, which can 
 
 ### MSAA
 
-![](./asset/present/withoutMSAA.png) ![](./asset/present/withMSAA.png) 
+![](./asset/present/withoutMSAA.png)
+
+![](./asset/present/withMSAA.png) 
+
+### Wireframe Mode
+![](./asset/present/Line.png) 
+
+### Shadow
+![](./asset/present/Shadow.png) 
