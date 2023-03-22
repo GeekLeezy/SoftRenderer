@@ -1,5 +1,7 @@
 #include "Math.h"
 
+extern mat4 lightMatrix;
+
 //�ӿڱ任
 mat4 getViewPortMat(const int& width, const int& height)
 {
@@ -78,4 +80,21 @@ float saturate(const float& val)
 
 vec3 reflect(const vec3& lightDir, const vec3& normal) {
     return lightDir - 2 * dot(normal, lightDir) * normal;
+}
+
+vec4 packDepth(const float& depth) {
+    vec4 bitShift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+    vec4 bitMask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+    vec4 encode = fract(depth * bitShift);
+
+    vec4 temp = vec4(encode.x, vec3(encode));
+    encode -= temp * bitMask;
+    return encode;
+}
+
+
+float unpackDepth(const vec4& enc) {
+    const vec4 bitShift = vec4(1.0 / (256.0 * 256.0 * 256.0), 1.0 / (256.0 * 256.0), 1.0 / 256.0, 1.0);
+    float decoded = dot(enc, bitShift);
+    return decoded;
 }

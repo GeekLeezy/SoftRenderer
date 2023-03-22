@@ -6,9 +6,12 @@ class VerToFrag
 public:
 	vec4 worldPos;
 	vec4 fragPos;
+	vec4 lightSpacePos;
+
 	vec4 color;
 	vec3 normal;
 	vec2 texture;
+
 	float Z;
 
 	VerToFrag() = default;
@@ -16,12 +19,13 @@ public:
 	VerToFrag(
 		const vec4& _wolrdPos,
 		const vec4& _fragPos,
+		const vec4& _lightSpacePos,
 		const vec4& _color,
 		const vec3& _normal,
-		const vec2& _texture) : worldPos(_wolrdPos), fragPos(_fragPos), color(_color), normal(_normal), texture(_texture), Z(1.0f) {}
+		const vec2& _texture) : worldPos(_wolrdPos), fragPos(_fragPos), lightSpacePos(_lightSpacePos), color(_color), normal(_normal), texture(_texture), Z(1.0f) {}
 
 	VerToFrag(const VerToFrag& v2f) :
-		worldPos(v2f.worldPos), fragPos(v2f.fragPos), color(v2f.color), normal(v2f.normal), texture(v2f.texture), Z(v2f.Z) {}
+		worldPos(v2f.worldPos), fragPos(v2f.fragPos), lightSpacePos(v2f.lightSpacePos), color(v2f.color), normal(v2f.normal), texture(v2f.texture), Z(v2f.Z) {}
 
 	~VerToFrag() = default;
 };
@@ -32,6 +36,7 @@ static VerToFrag lerp(const VerToFrag& f1, const VerToFrag& f2, const float& sca
 
 	f.worldPos = (1 - scale) * f1.worldPos + scale * f2.worldPos;
 	f.fragPos = (1 - scale) * f1.fragPos + scale * f2.fragPos;
+	f.lightSpacePos = (1 - scale) * f1.lightSpacePos + scale * f2.lightSpacePos;
 	//f.fragPos.x = (int)f.fragPos.x;
 	//f.fragPos.y = (int)f.fragPos.y;
 
@@ -59,6 +64,8 @@ static VerToFrag barycenterLerp(const VerToFrag& f1, const VerToFrag& f2, const 
 	f.fragPos = a * f1.fragPos + b * f2.fragPos + c * f3.fragPos;
 	f.fragPos.x = pos.x;
 	f.fragPos.y = pos.y;
+
+	f.lightSpacePos = a * f1.lightSpacePos + b * f2.lightSpacePos + c * f3.lightSpacePos;
 
 	f.worldPos = a * f1.worldPos + b * f2.worldPos + c * f3.worldPos;
 	f.normal = a * f1.normal + b * f2.normal + c * f3.normal;

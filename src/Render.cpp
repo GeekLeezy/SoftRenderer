@@ -3,12 +3,15 @@
 extern mat4 viewMatrix;
 extern mat4 projectMatrix;
 extern mat4 viewPortMatrix;
+extern mat4 lightViewMatrix; 
+extern mat4 lightOrthoMatrix;
 extern Material* curMaterial;
 
 void Render::clearBuffer()
 {
 	frontBuffer->clearColorBuffer();
 	frontBuffer->clearDepthBuffer();
+	shadowBuffer->clearDepthBuffer();
 }
 
 #pragma region stateMachine
@@ -32,9 +35,12 @@ void Render::perspectiveDivision(VerToFrag& v2f) {
 	v2f.Z = 1.0 / v2f.fragPos.w;
 
 	v2f.fragPos /= v2f.fragPos.w;
+	v2f.lightSpacePos /= v2f.lightSpacePos.w;
 	v2f.fragPos.w = 1.0f;
+	v2f.lightSpacePos.w = 1.0f;
 	// Z-Buffer∈[0,1]
 	v2f.fragPos.z = (v2f.fragPos.z + 1.0) * 0.5;
+	v2f.lightSpacePos.z = (v2f.lightSpacePos.z + 1.0) * 0.5;
 
 	v2f.worldPos *= v2f.Z;
 	v2f.texture *= v2f.Z;
@@ -93,15 +99,25 @@ void Render::drawObject(Object& obj)
 			vNew2.fragPos = viewPortMatrix * vNew2.fragPos;
 			vNew3.fragPos = viewPortMatrix * vNew3.fragPos;
 
+			vNew1.lightSpacePos = viewPortMatrix * vNew1.lightSpacePos;
+			vNew2.lightSpacePos = viewPortMatrix * vNew2.lightSpacePos;
+			vNew3.lightSpacePos = viewPortMatrix * vNew3.lightSpacePos;
+
 			if (!faceCull(vNew1.fragPos, vNew2.fragPos, vNew3.fragPos))
 			{
 				continue;
 			}
-
-			drawTriangle(vNew1, vNew2, vNew3);
-			//drawLine(vNew1, vNew2);
-			//drawLine(vNew2, vNew3);
-			//drawLine(vNew3, vNew1);
+			if (renderMod == Fill)
+			{
+				drawTriangle(vNew1, vNew2, vNew3);
+			}
+			else
+			{
+				drawLine(vNew1, vNew2);
+				drawLine(vNew2, vNew3);
+				drawLine(vNew3, vNew1);
+			}
+			
 
 		}
 
@@ -112,6 +128,7 @@ void Render::drawObject(Object& obj)
 
 void Render::drawModel(Model& model) {
 	for (int i = 0; i < model.objects.size(); i++) {
+		drawShadowBuffer(model.objects[i]);
 		drawObject(model.objects[i]);
 	}
 }
@@ -245,7 +262,21 @@ void Render::drawTriangle(const VerToFrag& f1, const VerToFrag& f2, const VerToF
 					f.normal /= z;
 					f.color /= z;
 
-					vec4 baseColor = curMaterial->mainTexture->sampler2D(f.texture);
+					//计算灯光空间下的坐标
+					vec4 shadowPos = lightOrthoMatrix * lightViewMatrix * f.worldPos;
+					shadowPos.z = (shadowPos.z + 1.0) * 0.5;
+					shadowPos = viewPortMatrix * shadowPos;
+
+					vec4 baseColor;
+					if (shadowBuffer->getDepth(shadowPos.x, shadowPos.y) < f.lightSpacePos.z - 0.001)
+					{
+						baseColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+					}
+					else
+					{
+						baseColor = curMaterial->mainTexture->sampler2D(f.texture);
+					}
+					
 					frontBuffer->drawPoint(i, j, curMaterial->shader->fragmentShader(f, baseColor));
 					frontBuffer->writeDepth(i, j, f.fragPos.z);
 				}
@@ -349,5 +380,101 @@ void Render::drawLine(const VerToFrag& f1, const VerToFrag& f2)
 
 }
 #pragma endregion Rasterization
+
+void Render::drawShadowBuffer(Object& obj)
+{
+	if (obj.mesh.EBO.empty())
+		return;
+
+	for (auto i = 0; i < obj.mesh.EBO.size(); i += 3)
+	{
+		Vertex v1, v2, v3;
+		v1 = obj.mesh.VBO[obj.mesh.EBO[i]];
+		v2 = obj.mesh.VBO[obj.mesh.EBO[i + 1]];
+		v3 = obj.mesh.VBO[obj.mesh.EBO[i + 2]];
+
+		VerToFrag f1, f2, f3;
+		f1 = shadowShader->vertexShader(v1);
+		f2 = shadowShader->vertexShader(v2);
+		f3 = shadowShader->vertexShader(v3);
+
+		//视锥剔除
+		/*if (!frustumCull(viewPlanes, f1.worldPos, f2.worldPos, f3.worldPos)) {
+			continue;
+		}*/
+
+		//裁剪空间剔除
+		/*if (!clipSpaceCull(f1.fragPos, f2.fragPos, f3.fragPos)) {
+			continue;
+		}*/
+
+		vector<VerToFrag> clipVertexs = viewPortCull(f1, f2, f3);
+
+		for (auto j = 0; j < clipVertexs.size(); j++)
+		{
+			perspectiveDivision(clipVertexs[j]);
+		}
+
+		int triCount = clipVertexs.size() - 3 + 1;
+		for (auto j = 0; j < triCount; j++)
+		{
+			VerToFrag vNew1 = clipVertexs[0];
+			VerToFrag vNew2 = clipVertexs[j + 1];
+			VerToFrag vNew3 = clipVertexs[j + 2];
+
+			vNew1.fragPos = viewPortMatrix * vNew1.fragPos;
+			vNew2.fragPos = viewPortMatrix * vNew2.fragPos;
+			vNew3.fragPos = viewPortMatrix * vNew3.fragPos;
+
+			if (!faceCull(vNew1.fragPos, vNew2.fragPos, vNew3.fragPos))
+			{
+				continue;
+			}
+			//对灯光深度图进行处理
+			vec2 p1 = vec2(vNew1.fragPos);
+			vec2 p2 = vec2(vNew2.fragPos);
+			vec2 p3 = vec2(vNew3.fragPos);
+
+			//构建包围盒
+			int max_x = std::max(p1.x, std::max(p2.x, p3.x));
+			int min_x = std::min(p1.x, std::min(p2.x, p3.x));
+			int max_y = std::max(p1.y, std::max(p2.y, p3.y));
+			int min_y = std::min(p1.y, std::min(p2.y, p3.y));
+
+
+
+			for (auto i = std::max(0, min_x); i <= std::min(width, max_x); i++)
+			{
+				for (auto j = std::max(0, min_y); j <= std::min(height, max_y); j++)
+				{
+
+					//MSAA(f1, f2, f3, i, j);
+					if (insideTriangle(p1, p2, p3, vec2(i + 0.5, j + 0.5)))
+					{
+						VerToFrag f = barycenterLerp(vNew1, vNew2, vNew3, vec2(i, j));
+						float depth = shadowBuffer->getDepth(i, j);
+
+						if (depth > f.fragPos.z)
+						{
+							float z = f.Z;
+							f.worldPos /= z;
+							f.texture /= z;
+							f.normal /= z;
+							f.color /= z;
+							
+							shadowBuffer->writeDepth(i, j, f.fragPos.z);
+							//frontBuffer->drawPoint(i, j, packDepth(f.fragPos.z));
+							//frontBuffer->drawPoint(i, j, vec4(f.fragPos.z, f.fragPos.z, f.fragPos.z, 1.0));
+						}
+					}
+				}
+			}
+
+		}
+
+
+
+	}
+}
 
 

@@ -22,10 +22,22 @@ extern mat4 modelMatrix;
 extern mat4 viewMatrix;
 extern mat4 projectMatrix;
 extern mat4 viewPortMatrix;
+extern mat4 lightViewMatrix;
+extern mat4 lightProjectMatrix;
+extern mat4 lightOrthoMatrix;
+
 
 void cameraInput(Camera* camera);
 void Draw(Window* win);
 void showFPS(Window* w);
+
+void getLightMat(Light* light, int width, int height)
+{
+	Camera lightCamera(light->position, vec3(0.0f, 1.0f, 0.0f), 45.0f, width / height, 1.0f, 10.0f, -90.0f, -90.0f);
+	lightViewMatrix = lightCamera.getViewMatrix();
+	lightProjectMatrix = lightCamera.getProjectMatrix();
+	lightOrthoMatrix = lightCamera.getOrthoMatrix();
+}
 
 
 // WinMain是一个函数，该函数的功能是被系统调用，作为一个32位应用程序的入口点
@@ -47,7 +59,7 @@ int main()
 	return 0;
 }
 
-void cameraInput(Camera* camera) 
+void cameraInput() 
 {
 	float moveSpeed = 0.1f;
 	if (IS_KEY_DOWN('A'))
@@ -99,6 +111,11 @@ void cameraInput(Camera* camera)
 	{
 		camera->rotateYaw(moveSpeed);
 	}
+
+	if (IS_KEY_DOWN('Q'))
+	{
+		renderer->changeRenderMode();
+	}
 }
 
 void Draw(Window* win)
@@ -136,14 +153,8 @@ void Draw(Window* win)
 	wood.setTexture(&boxTexture);
 	curMaterial = &surface;
 
+	boxMesh.addMesh(planeMesh);
 	Object Box(boxMesh, wood);
-	Object Plane(planeMesh, wood);
-
-	//创建灯光
-	dirLight = new PointLight(vec3(0.0f, 1.0f, 0.0f));
-
-	//计算透视投影矩阵以及视口变换矩阵
-	viewPortMatrix = getViewPortMat(width, height);
 
 	//变换矩阵
 	camera = new Camera(
@@ -151,7 +162,14 @@ void Draw(Window* win)
 		vec3(0.0f, 1.0f, 0.0f),
 		45.0, (float)width / (float)height,
 		1.0f, 20.f,
-		-75.0f, -45.0f);
+		-90.0f, -45.0f);
+
+	//创建灯光
+	dirLight = new PointLight(vec3(0.0f, 5.0f, 0.0f));
+	getLightMat(dirLight, win->width, win->height);
+
+	//计算透视投影矩阵以及视口变换矩阵
+	viewPortMatrix = getViewPortMat(width, height);
 	
 
 	renderer = new Render(width, height, win);
@@ -161,7 +179,7 @@ void Draw(Window* win)
 	while (msg.message != WM_QUIT) {
 
 		//处理按键输入
-		cameraInput(camera);
+		cameraInput();
 
 		//如果有窗口消息就进行处理
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
@@ -176,11 +194,14 @@ void Draw(Window* win)
 			//更新矩阵
 			viewMatrix = camera->getViewMatrix();
 			projectMatrix = camera->getProjectMatrix();
+			/*viewMatrix = lightViewMatrix;
+			projectMatrix = lightProjectMatrix;*/
 			renderer->updateViewPlanes();
 
 			//Render
 			//renderer->drawModel(planet);
-			renderer->drawObject(Plane);
+
+			renderer->drawShadowBuffer(Box);
 			renderer->drawObject(Box);
 
 			//在这里画到设备上，hMem相当于缓冲区

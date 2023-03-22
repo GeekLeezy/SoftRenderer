@@ -51,8 +51,11 @@ class Camera
         ~Camera() = default;
 
         mat4 getViewMatrix();
-
         mat4 getProjectMatrix();
+        mat4 getOrthoMatrix() 
+        {
+            return ortho(-2.0f, 2.0f, -2.0f, 2.0f, 1.0f, 10.0f);
+        }
 
 #pragma region stateUpdate
 

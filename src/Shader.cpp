@@ -7,6 +7,9 @@
 extern mat4 modelMatrix;
 extern mat4 viewMatrix;
 extern mat4 projectMatrix;
+extern mat4 lightViewMatrix;
+extern mat4 lightProjectMatrix;
+extern mat4 lightOrthoMatrix;
 
 extern const vec3 ambient;
 
@@ -21,6 +24,7 @@ VerToFrag Shader::vertexShader(const Vertex& v)
 	VerToFrag v2f;
 	v2f.worldPos = modelMatrix * v.position;
 	v2f.fragPos = projectMatrix * viewMatrix * v2f.worldPos;
+	v2f.lightSpacePos = lightOrthoMatrix * lightViewMatrix * v2f.worldPos;
 
 	v2f.Z = 1.0;
 	v2f.normal = mat3(transpose(inverse(modelMatrix))) * v.normal;
@@ -43,6 +47,32 @@ vec4 Shader::fragmentShader(const VerToFrag& v2f, const vec4& baseColor)
 	color += dirLight->calLight(vec3(v2f.worldPos), normal, viewDir, albedo);
 
 	return vec4(color, 1.0f);
+
+	/*vec4 color = curMaterial->mainTexture->sampler2D(v2f.texture);
+	return color;*/
+}
+
+//Shadow顶点着色器
+VerToFrag ShadowShader::vertexShader(const Vertex& v)
+{
+	VerToFrag v2f;
+	v2f.worldPos = modelMatrix * v.position;
+	v2f.fragPos = lightOrthoMatrix * lightViewMatrix * v2f.worldPos;
+	v2f.lightSpacePos = lightOrthoMatrix * lightViewMatrix * v2f.worldPos;
+
+	v2f.Z = 1.0;
+	v2f.normal = mat3(transpose(inverse(modelMatrix))) * v.normal;
+	v2f.color = v.color;
+	v2f.texture = v.texture;
+
+	return v2f;
+}
+
+//Shadow片元着色器
+vec4 ShadowShader::fragmentShader(const VerToFrag& v2f, const vec4& baseColor)
+{
+	//返回压缩了的深度
+	return packDepth(v2f.fragPos.z);
 
 	/*vec4 color = curMaterial->mainTexture->sampler2D(v2f.texture);
 	return color;*/

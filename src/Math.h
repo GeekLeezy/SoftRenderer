@@ -2,6 +2,7 @@
 
 #include "Global.h"
 
+
 //视口变换
 mat4 getViewPortMat(const int& width, const int& height);
 
@@ -21,3 +22,7 @@ bool pointToPlane(const glm::vec3& v, const glm::vec4& p);
 float saturate(const float& val);
 
 vec3 reflect(const vec3& lightDir, const vec3& normal);
+
+//四通道存储深度信息
+vec4 packDepth(const float& depth);
+float unpackDepth(const vec4& enc);

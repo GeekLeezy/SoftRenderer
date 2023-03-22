@@ -14,6 +14,19 @@ class FrameBuffer
 		float* superColorBuffer;
 		float* superDepthBuffer;
 
+		FrameBuffer(const int& w, const int& h)
+		{
+			width = w;
+			height = h;
+			colorBuffer = nullptr;
+			depthBuffer = new float[w * h];
+			std::fill_n(depthBuffer, w * h, 1.0f);
+			superColorBuffer = nullptr;
+			superDepthBuffer = nullptr;
+			MSAA = false;
+
+		}
+
 		FrameBuffer(const int& w, const int& h, unsigned char* color, bool antiAlias)
 		{
 			width = w;
@@ -35,6 +48,7 @@ class FrameBuffer
 			
 		}
 
+		
 		void drawPoint(const int& x, const int& y, const vec4& color);
 		void writeDepth(const int& x, const int& y, const float& depth);
 		float getDepth(const int& x, const int& y);
